@@ -1,30 +1,40 @@
 # TokTikLite
 
-A minimal Android app that opens TikTok links from other apps and displays them using TikTok's embed player, with no feed, no algorithm, and no scrolling.
+A lightweight Android WebView wrapper dedicated to TikTok's mobile web app (`m.tiktok.com` /
+`www.tiktok.com`). It behaves like Chrome opening TikTok — full site, your own login, no
+embed-only restriction — while staying a single-purpose app: it only ever navigates within
+TikTok's own domains and their required login/CDN partners, handing everything else off to
+the system.
 
 ## How it works
 
-When you tap a TikTok link anywhere on your phone, TokTikLite intercepts it and loads the video using TikTok's official embed URL — a clean single-video player. No For You page, no recommended videos, no account required.
-
-Supported link formats:
-- `https://www.tiktok.com/@user/video/ID`
-- `https://vm.tiktok.com/...` (short links)
-- `https://vt.tiktok.com/...` (short links)
-- `https://m.tiktok.com/v/ID`
+Tapping any TikTok link (`https://www.tiktok.com/...`, `https://vm.tiktok.com/...`,
+`https://vt.tiktok.com/...`, `https://m.tiktok.com/...`, `tiktok://...`, `snssdk://...`)
+anywhere on your phone opens it directly, natively, inside the app — the real page, not a
+stripped-down embed. Cookies and login state persist across restarts. Anything outside
+TikTok's domains (an external link tapped from inside a TikTok page, an unrelated deep link)
+is handed to the system instead of being loaded in-app.
 
 ## Building
 
-1. Open the project in [Android Studio](https://developer.android.com/studio)
-2. Connect your Android device with USB debugging enabled
-3. Press **Run**
+1. Open the project in [Android Studio](https://developer.android.com/studio) (AGP 8.9.1 / JDK 17).
+2. Connect your Android device with USB debugging enabled.
+3. Press **Run**.
 
-Requires Android 8.0+ (API 26).
+Requires Android 10+ (API 29).
 
 ## Setting as default link handler
 
 After installing, you may need to set TokTikLite as the default handler for TikTok links:
 
 - **Settings → Apps → Default Apps → Opening links → TokTikLite** and enable it, or
-- Tap a TikTok link, choose TokTikLite, and select **Always**
+- Tap a TikTok link, choose TokTikLite, and select **Always**.
 
-If the TikTok app is installed, you may also need to disable its link handling under its App Info settings.
+If the TikTok app is installed, you may also need to disable its link handling under its
+App Info settings.
+
+## Releasing
+
+Push a tag matching `v*` (e.g. `v2.0.0`) to trigger a signed release build and GitHub Release
+via `.github/workflows/android-build.yml`. Configure these repository secrets first:
+`RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`.

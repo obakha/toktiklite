@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TokTikLite</string>
+
+    <string name="status_offline_title">No connection</string>
+    <string name="status_offline_message">You\'re offline. Check your connection and try again.</string>
+    <string name="status_error_title">Something went wrong</string>
+    <string name="status_error_message">This page couldn\'t be loaded.</string>
+    <string name="status_retry">Retry</string>
 </resources>

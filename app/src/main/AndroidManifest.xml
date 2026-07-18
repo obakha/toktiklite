@@ -1,7 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Requested at runtime; only actually granted if the page (TikTok) asks for them via
+         the WebView permission callbacks handled in PermissionManager. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- No WRITE_EXTERNAL_STORAGE permission: minSdk is 29+, and DownloadManager writes into
+         the public Downloads collection via MediaStore without needing it on those versions. -->
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
+    <!-- Android 11+ package visibility: required so IntentRouter.handOff() can resolve and
+         launch an external browser or the real TikTok app for anything outside our allow-list. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -9,13 +41,17 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.TokTikLite">
+        android:theme="@style/Theme.TokTikLite"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="34">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".BrowserActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:theme="@style/Theme.TokTikLite.Splash"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize|uiMode"
+            android:windowSoftInputMode="adjustResize">
 
             <!-- Launcher intent for app drawer -->
             <intent-filter>
@@ -23,47 +59,47 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Handle www.tiktok.com video URLs -->
-            <intent-filter>
+            <!-- https://www.tiktok.com/... -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="www.tiktok.com" android:pathPattern=".*" />
+                <data android:scheme="https" android:host="www.tiktok.com" />
             </intent-filter>
 
-            <!-- Handle tiktok.com (no www) video URLs -->
-            <intent-filter>
+            <!-- https://tiktok.com/... (no www) -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="tiktok.com" android:pathPattern=".*" />
+                <data android:scheme="https" android:host="tiktok.com" />
             </intent-filter>
 
-            <!-- Handle vm.tiktok.com short links -->
-            <intent-filter>
+            <!-- https://vm.tiktok.com/... short links -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="vm.tiktok.com" />
             </intent-filter>
 
-            <!-- Handle vt.tiktok.com short links -->
-            <intent-filter>
+            <!-- https://vt.tiktok.com/... short links -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="vt.tiktok.com" />
             </intent-filter>
 
-            <!-- Handle m.tiktok.com mobile links -->
-            <intent-filter>
+            <!-- https://m.tiktok.com/... -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="m.tiktok.com" android:pathPattern=".*" />
+                <data android:scheme="https" android:host="m.tiktok.com" />
             </intent-filter>
 
-            <!-- Handle native tiktok:// deep links -->
+            <!-- tiktok:// native app links, normalized to https by IntentRouter -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -71,7 +107,26 @@
                 <data android:scheme="tiktok" />
             </intent-filter>
 
+            <!-- snssdk:// native app links, normalized to https by IntentRouter -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="snssdk" />
+            </intent-filter>
+
         </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.toktiklite.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 
 </manifest>

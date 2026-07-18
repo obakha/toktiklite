@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#000000</color>
+
+    <!-- Brand accent, echoing TikTok's signature cyan/red duotone without reusing their assets. -->
+    <color name="brand_accent">#25F4EE</color>
+    <color name="brand_accent_dark">#0FCFC9</color>
+
+    <color name="surface_light">#FFFFFF</color>
+    <color name="surface_dark">#121212</color>
+    <color name="on_surface_light">#1A1A1A</color>
+    <color name="on_surface_dark">#EDEDED</color>
 </resources>
