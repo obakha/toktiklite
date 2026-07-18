@@ -6,6 +6,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -28,9 +29,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        val url = intent?.data?.toString() ?: return
-        val embedUrl = toEmbedUrl(url) ?: url
-        webView.loadUrl(embedUrl)
+        val url = intent?.data?.toString()
+        if (url != null) {
+            val embedUrl = toEmbedUrl(url) ?: url
+            webView.loadUrl(embedUrl)
+        } else {
+            // No URL provided, load homepage
+            webView.loadUrl("https://www.tiktok.com")
+        }
     }
 
     private fun configureWebView() {
@@ -41,6 +47,8 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             allowFileAccess = false
             allowContentAccess = false
+            useWideViewPort = true
+            loadWithOverviewMode = true
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -49,9 +57,18 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val url = request.url.toString()
-                val embedUrl = toEmbedUrl(url) ?: return false
-                view.loadUrl(embedUrl)
-                return true
+                
+                // Check if it's a TikTok URL
+                if (url.contains("tiktok.com")) {
+                    val embedUrl = toEmbedUrl(url)
+                    if (embedUrl != null) {
+                        view.loadUrl(embedUrl)
+                        return true
+                    }
+                }
+                
+                // Let WebView handle other URLs normally
+                return false
             }
         }
     }
