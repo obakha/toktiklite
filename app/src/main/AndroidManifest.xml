@@ -17,12 +17,18 @@
             android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|keyboardHidden">
 
+            <!-- Launcher intent for app drawer -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
             <!-- Handle www.tiktok.com video URLs -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="www.tiktok.com" />
+                <data android:scheme="https" android:host="www.tiktok.com" android:pathPattern=".*" />
             </intent-filter>
 
             <!-- Handle tiktok.com (no www) video URLs -->
@@ -30,7 +36,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="tiktok.com" />
+                <data android:scheme="https" android:host="tiktok.com" android:pathPattern=".*" />
             </intent-filter>
 
             <!-- Handle vm.tiktok.com short links -->
@@ -54,7 +60,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="m.tiktok.com" />
+                <data android:scheme="https" android:host="m.tiktok.com" android:pathPattern=".*" />
             </intent-filter>
 
         </activity>
