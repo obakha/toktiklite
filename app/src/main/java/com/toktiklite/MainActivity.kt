@@ -3,6 +3,7 @@ package com.toktiklite
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         when {
             url.startsWith("snssdk") -> handleDeepLink(url)
             url.startsWith("onelink") -> handleDeepLink(url)
+            url.startsWith("tiktok://") -> handleNativeScheme(url)
             url.contains("tiktok.com") -> {
                 val embedUrl = toEmbedUrl(url) ?: url
                 webView.loadUrl(embedUrl)
@@ -49,17 +51,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Handle native TikTok scheme (tiktok://)
+     */
+    private fun handleNativeScheme(url: String) {
+        try {
+            val uri = Uri.parse(url)
+            val path = uri.path ?: return
+
+            // tiktok://user/@username or tiktok://user/123456
+            if (path.contains("/user")) {
+                val userInfo = path.substringAfterLast("/").takeWhile { it != '?' }
+                if (userInfo.isNotEmpty()) {
+                    webView.loadUrl("https://www.tiktok.com/@$userInfo")
+                    return
+                }
+            }
+
+            // tiktok://video/123456 or tiktok://v/123456
+            if (path.contains("/video") || path.contains("/v/")) {
+                val videoId = path.substringAfterLast("/").takeWhile { it.isDigit() }
+                if (videoId.isNotEmpty()) {
+                    val embedUrl = "https://www.tiktok.com/embed/v2/$videoId"
+                    webView.loadUrl(embedUrl)
+                    return
+                }
+            }
+
+            // tiktok://search?keyword=...
+            val keyword = uri.getQueryParameter("keyword")
+            if (!keyword.isNullOrEmpty()) {
+                webView.loadUrl("https://www.tiktok.com/search?q=$keyword")
+                return
+            }
+
+            webView.loadUrl("https://www.tiktok.com")
+        } catch (e: Exception) {
+            webView.loadUrl("https://www.tiktok.com")
+        }
+    }
+
     private fun handleDeepLink(url: String) {
         try {
             val uri = Uri.parse(url)
-            
+
             // Extract search keyword
             val keyword = uri.getQueryParameter("keyword")
             if (!keyword.isNullOrEmpty()) {
                 webView.loadUrl("https://www.tiktok.com/search?q=$keyword")
                 return
             }
-            
+
             // Handle user profile deep links (snssdk://user/profile/...)
             if (url.contains("/user/profile/")) {
                 val profileId = url.substringAfterLast("/").takeWhile { it.isDigit() }
@@ -68,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
             }
-            
+
             // Handle video deep links (snssdk://video/...)
             if (url.contains("/video/")) {
                 val videoId = url.substringAfterLast("/").takeWhile { it.isDigit() }
@@ -78,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
             }
-            
+
             // Try to extract params_url (the actual TikTok web URL)
             val paramsUrl = uri.getQueryParameter("params_url")
             if (!paramsUrl.isNullOrEmpty()) {
@@ -92,7 +134,7 @@ class MainActivity : AppCompatActivity() {
                     // Continue to fallback
                 }
             }
-            
+
             // Fallback to homepage
             webView.loadUrl("https://www.tiktok.com")
         } catch (e: Exception) {
@@ -101,15 +143,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun configureWebView() {
+        // Configure settings
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            databaseEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             allowFileAccess = false
             allowContentAccess = false
             useWideViewPort = true
             loadWithOverviewMode = true
+            cacheMode = WebSettings.LOAD_DEFAULT
+
+            // Set user agent to mimic mobile browser (helps with TikTok compatibility)
+            userAgentString = "Mozilla/5.0 (Linux; Android ${android.os.Build.VERSION.RELEASE}) AppleWebKit/537.36"
+        }
+
+        // Enable cookie and session management
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.acceptThirdPartyCookies(webView)
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -118,13 +173,19 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val url = request.url.toString()
-                
+
                 // Intercept deep links before WebView tries to load them
                 if (url.startsWith("snssdk") || url.startsWith("onelink")) {
                     handleDeepLink(url)
                     return true
                 }
-                
+
+                // Intercept native TikTok scheme
+                if (url.startsWith("tiktok://")) {
+                    handleNativeScheme(url)
+                    return true
+                }
+
                 // Handle TikTok URLs
                 if (url.contains("tiktok.com")) {
                     val embedUrl = toEmbedUrl(url)
@@ -133,7 +194,7 @@ class MainActivity : AppCompatActivity() {
                         return true
                     }
                 }
-                
+
                 // Let WebView handle other URLs normally
                 return false
             }

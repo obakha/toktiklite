@@ -63,6 +63,14 @@
                 <data android:scheme="https" android:host="m.tiktok.com" android:pathPattern=".*" />
             </intent-filter>
 
+            <!-- Handle native tiktok:// deep links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tiktok" />
+            </intent-filter>
+
         </activity>
     </application>
 
