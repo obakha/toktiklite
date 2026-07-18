@@ -38,14 +38,14 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
           echo "$SDK_ROOT/platform-tools" >> $GITHUB_PATH
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "sdk.dir=$SDK_ROOT" > local.properties
 
       - name: Build debug APK with Gradle
-        env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.6'
           arguments: assembleDebug --stacktrace --info
+          cache-disabled: true
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
