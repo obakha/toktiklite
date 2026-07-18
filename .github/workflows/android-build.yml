@@ -40,6 +40,8 @@ jobs:
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: Build debug APK with Gradle
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.6'
