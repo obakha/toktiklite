@@ -10,8 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      SDK_ROOT: ${{ runner.temp }}/android-sdk
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,23 +23,21 @@ jobs:
       - name: Install Android command-line tools and SDK packages
         run: |
           set -e
+          echo "Using RUNNER_TEMP: $RUNNER_TEMP"
+          SDK_ROOT="$RUNNER_TEMP/android-sdk"
           sudo apt-get update
           sudo apt-get install -y unzip wget
-          export ANDROID_SDK_ROOT="${{ env.SDK_ROOT }}"
-          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          mkdir -p "$SDK_ROOT/cmdline-tools"
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline.zip
           unzip -q /tmp/cmdline.zip -d /tmp/cmdline
-          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-          mv /tmp/cmdline/cmdline-tools/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
-          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
-          yes | sdkmanager --sdk_root="$ANDROID_SDK_ROOT" --licenses
-          sdkmanager --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;34.0.0"
-
-      - name: Add Android SDK tools to PATH for remaining steps
-        run: |
-          echo "ANDROID_SDK_ROOT=${{ env.SDK_ROOT }}" >> $GITHUB_ENV
-          echo "${{ env.SDK_ROOT }}/platform-tools" >> $GITHUB_PATH
-          echo "${{ env.SDK_ROOT }}/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+          mv /tmp/cmdline/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/"
+          export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$PATH"
+          yes | sdkmanager --sdk_root="$SDK_ROOT" --licenses
+          sdkmanager --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;34.0.0"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> $GITHUB_ENV
+          echo "$SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
       - name: Build debug APK with Gradle
         uses: gradle/gradle-build-action@v2
