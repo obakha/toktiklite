@@ -31,22 +31,21 @@ class MainActivity : AppCompatActivity() {
     private fun handleIntent(intent: Intent?) {
         val url = intent?.data?.toString()
         if (url != null) {
-            when {
-                // Handle TikTok URLs
-                url.contains("tiktok.com") -> {
-                    val embedUrl = toEmbedUrl(url) ?: url
-                    webView.loadUrl(embedUrl)
-                }
-                // Handle deep links - redirect to TikTok web
-                url.startsWith("snssdk") || url.startsWith("onelink") -> {
-                    handleDeepLink(url)
-                }
-                // Handle other URLs
-                else -> webView.loadUrl(url)
-            }
+            loadUrlSafely(url)
         } else {
-            // No URL provided, load homepage
             webView.loadUrl("https://www.tiktok.com")
+        }
+    }
+
+    private fun loadUrlSafely(url: String) {
+        when {
+            url.startsWith("snssdk") -> handleDeepLink(url)
+            url.startsWith("onelink") -> handleDeepLink(url)
+            url.contains("tiktok.com") -> {
+                val embedUrl = toEmbedUrl(url) ?: url
+                webView.loadUrl(embedUrl)
+            }
+            else -> webView.loadUrl(url)
         }
     }
 
@@ -54,23 +53,43 @@ class MainActivity : AppCompatActivity() {
         try {
             val uri = Uri.parse(url)
             
-            // Extract search keyword if it's a search deep link
+            // Extract search keyword
             val keyword = uri.getQueryParameter("keyword")
             if (!keyword.isNullOrEmpty()) {
-                val searchUrl = "https://www.tiktok.com/search?q=$keyword"
-                webView.loadUrl(searchUrl)
+                webView.loadUrl("https://www.tiktok.com/search?q=$keyword")
                 return
             }
             
-            // Extract the actual domain_source to redirect
-            val domainSource = uri.getQueryParameter("domain_source")
-            if (domainSource == "tiktok") {
-                // Try to extract the actual URL from af_dp parameter
-                val afDp = uri.getQueryParameter("af_dp")
-                if (!afDp.isNullOrEmpty()) {
-                    // Deep link contains snssdk:// protocol, redirect to web version
-                    webView.loadUrl("https://www.tiktok.com")
+            // Handle user profile deep links (snssdk://user/profile/...)
+            if (url.contains("/user/profile/")) {
+                val profileId = url.substringAfterLast("/").takeWhile { it.isDigit() }
+                if (profileId.isNotEmpty()) {
+                    webView.loadUrl("https://www.tiktok.com/@user$profileId")
                     return
+                }
+            }
+            
+            // Handle video deep links (snssdk://video/...)
+            if (url.contains("/video/")) {
+                val videoId = url.substringAfterLast("/").takeWhile { it.isDigit() }
+                if (videoId.isNotEmpty()) {
+                    val embedUrl = "https://www.tiktok.com/embed/v2/$videoId"
+                    webView.loadUrl(embedUrl)
+                    return
+                }
+            }
+            
+            // Try to extract params_url (the actual TikTok web URL)
+            val paramsUrl = uri.getQueryParameter("params_url")
+            if (!paramsUrl.isNullOrEmpty()) {
+                try {
+                    val decodedUrl = java.net.URLDecoder.decode(paramsUrl, "UTF-8")
+                    if (decodedUrl.contains("tiktok.com")) {
+                        webView.loadUrl(decodedUrl)
+                        return
+                    }
+                } catch (e: Exception) {
+                    // Continue to fallback
                 }
             }
             
@@ -100,18 +119,17 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 val url = request.url.toString()
                 
-                when {
-                    // Handle TikTok URLs
-                    url.contains("tiktok.com") -> {
-                        val embedUrl = toEmbedUrl(url)
-                        if (embedUrl != null) {
-                            view.loadUrl(embedUrl)
-                            return true
-                        }
-                    }
-                    // Handle deep links
-                    url.startsWith("snssdk") || url.startsWith("onelink") -> {
-                        handleDeepLink(url)
+                // Intercept deep links before WebView tries to load them
+                if (url.startsWith("snssdk") || url.startsWith("onelink")) {
+                    handleDeepLink(url)
+                    return true
+                }
+                
+                // Handle TikTok URLs
+                if (url.contains("tiktok.com")) {
+                    val embedUrl = toEmbedUrl(url)
+                    if (embedUrl != null) {
+                        view.loadUrl(embedUrl)
                         return true
                     }
                 }
@@ -122,10 +140,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Converts a TikTok video URL to its embeddable form.
-     * Returns null if the URL is already an embed URL or not a video URL.
-     */
     private fun toEmbedUrl(url: String): String? {
         if (url.contains("tiktok.com/embed/")) return null
 
