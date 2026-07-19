@@ -30,8 +30,32 @@ class BrowserWebViewClient(
         val route = intentRouter.routeUri(request.url)
         return when (route) {
             is IntentRouter.Route.LoadInApp -> {
-                // Same document, no special handling needed; let WebView load it directly.
-                false
+                when {
+                    route.url == request.url.toString() -> {
+                        // Ordinary https:// navigation, nothing to rewrite; let WebView load it
+                        // directly so referrer/POST-data/back-stack semantics stay normal.
+                        false
+                    }
+                    request.isForMainFrame -> {
+                        // A real native-scheme navigation (tiktok://, snssdk://, versioned
+                        // variants like snssdk1233://) on the visible page. WebView cannot fetch
+                        // a non-http(s) scheme itself - returning false would make it try to load
+                        // the *original* request URL and fail immediately with
+                        // net::ERR_UNKNOWN_URL_SCHEME. We take over and load the rewritten URL.
+                        view.loadUrl(route.url)
+                        true
+                    }
+                    else -> {
+                        // Same native-scheme rewrite, but in a sub-frame - almost always one of
+                        // TikTok's hidden "silently try to wake the native app" probe iframes
+                        // (visible in the wild as gd_label=click_wap_silence_awaken). There's no
+                        // visible content to recover for an invisible frame, and loading a full
+                        // page into it would be wasted work (a second video player instance,
+                        // etc.), so we just swallow the navigation the same way a real native
+                        // app's absence would in an ordinary browser.
+                        true
+                    }
+                }
             }
             is IntentRouter.Route.Handoff -> {
                 intentRouter.handOff(route.uri)
