@@ -42,18 +42,17 @@ jobs:
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "sdk.dir=$SDK_ROOT" > local.properties
 
-      # This repo does not check in gradlew/gradlew.bat/gradle-wrapper.jar, only
-      # gradle/wrapper/gradle-wrapper.properties (the version pin). gradle-build-action reads
-      # that file and provisions the matching Gradle distribution itself, so builds are
-      # reproducible without a committed wrapper binary. If you'd rather commit a wrapper
-      # script for local `./gradlew` use, run `gradle wrapper --gradle-version 8.11.1` once
-      # from a local Gradle install and commit the generated gradlew/gradlew.bat files.
+      # gradle/gradle-build-action is archived/deprecated (superseded by gradle/actions/setup-gradle),
+      # and driving the build through its `arguments:` input is deprecated too. This repo now
+      # commits a real gradlew/gradlew.bat/gradle-wrapper.jar (pulled straight from the official
+      # gradle/gradle v8.11.1 tag), matching gradle/wrapper/gradle-wrapper.properties, so we set up
+      # caching with setup-gradle and then just call ./gradlew directly, same as any normal
+      # Gradle project.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Build debug APK
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: '8.11.1'
-          arguments: assembleDebug --stacktrace
-          cache-disabled: false
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
@@ -72,19 +71,16 @@ jobs:
 
       - name: Build release APK
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: gradle/gradle-build-action@v3
         env:
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        with:
-          gradle-version: '8.11.1'
-          arguments: >
-            assembleRelease --stacktrace
-            -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.keystore
-            -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_STORE_PASSWORD }}
-            -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_KEY_ALIAS }}
-            -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --stacktrace \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/release.keystore" \
+            -Pandroid.injected.signing.store.password="$RELEASE_STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$RELEASE_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$RELEASE_KEY_PASSWORD"
 
       - name: Upload release APK artifact
         if: startsWith(github.ref, 'refs/tags/v')

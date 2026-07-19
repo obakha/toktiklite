@@ -21,6 +21,12 @@ is handed to the system instead of being loaded in-app.
 2. Connect your Android device with USB debugging enabled.
 3. Press **Run**.
 
+Or from the command line:
+
+```bash
+./gradlew assembleDebug
+```
+
 Requires Android 10+ (API 29).
 
 ## Setting as default link handler
