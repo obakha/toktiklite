@@ -48,15 +48,12 @@ object Constants {
     val NATIVE_SCHEMES: List<String> = listOf("tiktok", "snssdk")
 
     /**
-     * A realistic, current mobile Chrome UA. TikTok's web app serves a materially different
-     * (and more limited) experience to UAs it can't recognize as a modern mobile browser.
-     * This must be updated periodically as Chrome's version increments; it is centralized here
-     * for that reason.
+     * Current desktop Chrome stable version (Linux channel) as of the last time this was
+     * updated. Needs periodic bumping as Chrome ships new majors every ~4 weeks; a stale but
+     * plausible version is far less suspicious to TikTok's fingerprinting than a wildly
+     * out-of-date one, but this should still be refreshed occasionally.
      */
-    const val USER_AGENT_SUFFIX_TEMPLATE =
-        " Mobile Safari/537.36"
-
-    const val CHROME_MAJOR_VERSION = "126.0.6478.122"
+    const val CHROME_MAJOR_VERSION = "150.0.7871.124"
 
     /** Directory (relative to the public Downloads collection) videos are saved into. */
     const val DOWNLOAD_SUBDIRECTORY = "TokTikLite"

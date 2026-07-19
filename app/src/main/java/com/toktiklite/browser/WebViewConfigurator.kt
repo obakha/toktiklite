@@ -4,13 +4,22 @@ import android.annotation.SuppressLint
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.toktiklite.Constants
 
 /**
  * Applies every WebView/WebSettings/CookieManager configuration decision in one place, with
- * the reasoning for each setting documented inline. Nothing here is TikTok-specific beyond the
- * user agent string; everything else is "what a general-purpose, security-conscious WebView
- * wrapper for a modern web app needs."
+ * the reasoning for each setting documented inline.
+ *
+ * IMPORTANT CONTEXT: this configures the WebView to request TikTok's *desktop* site rather
+ * than its mobile site, deliberately. TikTok's mobile web experience is a crippled funnel
+ * toward the native app (muted/non-interactive preview, a looping "open app" prompt, no
+ * comments) - this is confirmed, intentional product behavior, not something specific to
+ * WebViews, and it's the same behavior you'd see in any mobile browser hitting tiktok.com
+ * without switching to "Desktop site" mode. The desktop site is fully functional because
+ * there's no competing native app to funnel desktop users toward. This mirrors exactly what
+ * "Request Desktop Site" does in Chrome/Safari on a phone - same trick, same reason it works.
  */
 object WebViewConfigurator {
 
@@ -28,52 +37,81 @@ object WebViewConfigurator {
         // starting with Android 15. Calling it does nothing and would only be misleading here.
 
         // --- Playback ---
-        // TikTok video previews autoplay muted; requiring a gesture would break the feed.
         settings.mediaPlaybackRequiresUserGesture = false
 
         // --- Rendering / viewport ---
-        // TikTok serves a responsive mobile layout; these two make it render as a phone browser
-        // would rather than a shrunk desktop page.
+        // Desktop sites are typically NOT touch/small-screen optimized (TikTok's own desktop
+        // CSS assumes a mouse: hover states, fixed-width layout). useWideViewPort + overview
+        // mode shrinks that wide layout to fit the screen initially, and enabling zoom controls
+        // lets the user pinch-zoom the same way they would with "Desktop site" mode in a real
+        // mobile browser - this is expected, not a bug, for a desktop-rendered page on a phone.
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.layoutAlgorithm = WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING
+        settings.setSupportZoom(true)
+        settings.builtInZoomControls = true
+        settings.displayZoomControls = false // pinch-to-zoom only, no on-screen +/- buttons
 
         // --- Caching / performance ---
-        // Let WebView decide based on cache-control headers rather than forcing a mode; this
-        // avoids both unnecessary re-fetches and stale-content bugs.
         settings.cacheMode = WebSettings.LOAD_DEFAULT
 
         // --- Security ---
-        // The app never loads local HTML, so file:// access brings no benefit and only risk.
         settings.allowFileAccess = false
         settings.allowContentAccess = false
-        // We only ever navigate to https:// origins (see IntentRouter); block http fallbacks
-        // and any accidental mixed-content requests from third-party embeds.
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         settings.setSupportMultipleWindows(true) // required for onCreateWindow (OAuth popups)
-        settings.javaScriptCanOpenWindowsAutomatically = true // paired with the above; TikTok's
-        // login flow opens the Google/Apple OAuth popup via window.open()
+        settings.javaScriptCanOpenWindowsAutomatically = true
         settings.setSafeBrowsingEnabled(true)
 
-        // --- User agent ---
-        // Force a modern, generic mobile Chrome UA so tiktok.com serves its standard mobile web
-        // experience instead of a reduced "unsupported browser" fallback. We append to the
-        // system-provided WebView UA rather than fabricating one from scratch, so the underlying
-        // Chromium/WebView version stays accurate for TikTok's feature detection.
-        settings.userAgentString = buildUserAgent(settings.userAgentString)
+        // --- User agent: impersonate desktop Chrome on Linux ---
+        // This is the exact UA shape Chrome's own "Request Desktop Site" sends (confirmed via
+        // Chrome DevTools network capture): no "Android", no "Mobile" token, no device model.
+        // TikTok's mobile-vs-desktop split is keyed primarily off this string.
+        settings.userAgentString =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/${Constants.CHROME_MAJOR_VERSION} Safari/537.36"
+
+        // Some sites also (or instead) check the newer User-Agent Client Hints API
+        // (navigator.userAgentData) rather than parsing the UA string. Real desktop Chrome
+        // reports userAgentData.mobile === false and platform "Linux". Because WebView still
+        // generates these based on the actual OS underneath, we patch them via a script that
+        // runs before any page script (addDocumentStartJavaScript), the same mechanism
+        // ad-blockers and privacy browsers use for this exact class of override.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addDocumentStartJavaScript(
+                webView,
+                """
+                (function() {
+                    if (!('userAgentData' in navigator)) return;
+                    try {
+                        Object.defineProperty(navigator, 'userAgentData', {
+                            get: function() {
+                                return {
+                                    mobile: false,
+                                    platform: 'Linux',
+                                    brands: [
+                                        { brand: 'Not?A_Brand', version: '8' },
+                                        { brand: 'Chromium', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' },
+                                        { brand: 'Google Chrome', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' }
+                                    ],
+                                    getHighEntropyValues: function(hints) {
+                                        return Promise.resolve({
+                                            mobile: false,
+                                            platform: 'Linux',
+                                            platformVersion: '6.5.0'
+                                        });
+                                    }
+                                };
+                            }
+                        });
+                    } catch (e) { /* best-effort only; never break page load over this */ }
+                })();
+                """.trimIndent(),
+                setOf("https://*.tiktok.com", "https://*.tiktokcdn.com", "https://*.tiktokv.com")
+            )
+        }
 
         configureCookies()
-    }
-
-    private fun buildUserAgent(existing: String): String {
-        // Strip any "wv" WebView marker some OEM builds include; TikTok's browser detection
-        // treats a bare "wv" token as a signal to block/limit the session.
-        val withoutWvMarker = existing.replace("; wv", "").replace(" wv", "")
-        return if (withoutWvMarker.contains("Mobile Safari")) {
-            withoutWvMarker
-        } else {
-            "$withoutWvMarker${Constants.USER_AGENT_SUFFIX_TEMPLATE}"
-        }
     }
 
     /**
