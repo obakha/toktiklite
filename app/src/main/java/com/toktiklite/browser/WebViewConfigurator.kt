@@ -141,10 +141,6 @@ object WebViewConfigurator {
                         // Two different naming schemes show up across TikTok's own page bundles
                         // (video-detail vs. homepage), so both are covered.
                         '[class*="DivFooterContainer"], [class*="SubMainNavFooterContainer"], [class*="FooterRoot"], [class*="FooterContainer"], [class*="StyledFooterItemLink"] { display: none !important; }',
-                        // Best-effort: let the main content column reclaim the width freed by
-                        // hiding the right panel above. This one is the least certain of the
-                        // batch - flag it if the layout looks unchanged or looks broken either way.
-                        '[class*="DivContentContainer"], [class*="DivMainContainer"] { max-width: 100% !important; }',
                         // The floating "Open App" nag button confirmed on the homepage
                         // (DivOpenTikTokButtonWrapper / ButtonCTAOpenApp) - this is almost
                         // certainly the animated tap-prompt button. We ARE the app already, so
