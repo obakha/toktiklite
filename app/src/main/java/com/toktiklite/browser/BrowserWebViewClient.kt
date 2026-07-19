@@ -69,11 +69,21 @@ class BrowserWebViewClient(
      * We do NOT blindly proceed past SSL errors. TikTok is always served over valid, trusted
      * certificates; a cert error here almost always means a captive portal or a
      * man-in-the-middle proxy, and silently accepting it would be a serious security regression.
-     * We cancel the load and let the error/offline page explain what happened.
+     * We cancel the load either way.
+     *
+     * This older WebViewClient overload doesn't tell us whether the failing resource is the
+     * top-level document or one of the many sub-resources a TikTok page loads (video segments,
+     * CDN thumbnails, ad/analytics beacons) - there is no WebResourceRequest here, just a bare
+     * SslError. Comparing the failing URL against the page's own URL is the closest available
+     * heuristic for "was this the main navigation". Without it, a single cert hiccup on any
+     * background resource would blank out an otherwise working page.
      */
     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
         handler.cancel()
-        callbacks.onLoadError(-1, "A secure connection could not be established.", error.url)
+        val isMainDocument = error.url == view.url
+        if (isMainDocument) {
+            callbacks.onLoadError(-1, "A secure connection could not be established.", error.url)
+        }
     }
 
     /**
