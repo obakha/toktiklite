@@ -17,7 +17,7 @@ is handed to the system instead of being loaded in-app.
 
 ## Building
 
-1. Open the project in [Android Studio](https://developer.android.com/studio) (AGP 8.9.1 / JDK 17).
+1. Open the project in [Android Studio](https://developer.android.com/studio) (AGP 8.13.0 / JDK 17).
 2. Connect your Android device with USB debugging enabled.
 3. Press **Run**.
 
