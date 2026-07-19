@@ -131,6 +131,14 @@ class BrowserActivity : AppCompatActivity() {
     }
 
     private fun setupWebView(savedInstanceState: Bundle?) {
+        // Lets you inspect the real Network tab (status codes, CORS, redirects) via
+        // chrome://inspect on a desktop with the device connected over USB debugging.
+        // Gated on FLAG_DEBUGGABLE rather than a BuildConfig field so it never needs the
+        // buildConfig feature enabled, and never turns on in a release build.
+        if ((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+
         WebViewConfigurator.configure(webView)
         WebViewConfigurator.enableThirdPartyCookies(webView)
 
