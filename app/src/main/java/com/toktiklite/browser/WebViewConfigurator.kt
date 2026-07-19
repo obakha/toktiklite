@@ -53,7 +53,7 @@ object WebViewConfigurator {
         settings.setSupportMultipleWindows(true) // required for onCreateWindow (OAuth popups)
         settings.javaScriptCanOpenWindowsAutomatically = true // paired with the above; TikTok's
         // login flow opens the Google/Apple OAuth popup via window.open()
-        webView.setSafeBrowsingEnabled(true)
+        settings.setSafeBrowsingEnabled(true)
 
         // --- User agent ---
         // Force a modern, generic mobile Chrome UA so tiktok.com serves its standard mobile web
