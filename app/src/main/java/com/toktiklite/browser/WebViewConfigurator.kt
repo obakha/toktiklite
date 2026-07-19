@@ -105,6 +105,56 @@ object WebViewConfigurator {
                             }
                         });
                     } catch (e) { /* best-effort only; never break page load over this */ }
+
+                    // --- Selector-independent readability baseline ---
+                    // Deliberately does NOT target any TikTok class name: their CSS classes are
+                    // build-hashed (e.g. "components.6ec42283.css") and reshuffle on every
+                    // deploy, so anything keyed to a specific class breaks on their next release.
+                    // These rules only touch document-level, tag-level, and standard-attribute
+                    // selectors, which are far more stable.
+                    var style = document.createElement('style');
+                    style.setAttribute('data-toktiklite', 'baseline');
+                    style.textContent = [
+                        // Prevent the desktop-width layout from creating a horizontal gutter/
+                        // scrollbar on a narrow screen; content should clip, not shift the page.
+                        'html, body { overflow-x: hidden !important; max-width: 100vw; }',
+                        // Desktop hover-only affordances (tooltips, hover-reveal menus) are dead
+                        // weight on a touchscreen; this is a tag/attribute-level, not class-level,
+                        // best-effort softening and safe to leave in even where it does nothing.
+                        '* { -webkit-tap-highlight-color: transparent; }',
+                        // Videos and images should never overflow their column on the shrunk
+                        // desktop layout, regardless of what class TikTok gives them this week.
+                        'video, img { max-width: 100%; height: auto; }',
+
+                        // --- Targeted rules, confirmed against an actual rendered-DOM capture ---
+                        // TikTok's build hashes the class-name PREFIX on every deploy, but the
+                        // "--ComponentName" suffix comes straight from their styled-components
+                        // source and only changes when they rename the component itself - a
+                        // substring match on that suffix survives deploys the exact class would not.
+                        //
+                        // Right-side "related videos" panel on the video-detail page: pure bonus
+                        // content, nothing lost by hiding it, and it frees real width back to the
+                        // actual player/content column on a narrow screen.
+                        '[class*="RightPanelContainer"] { display: none !important; }',
+                        // Desktop footer link columns (About/Careers/legal/etc.): irrelevant
+                        // clutter in an app that only ever shows one video/feed at a time.
+                        // Two different naming schemes show up across TikTok's own page bundles
+                        // (video-detail vs. homepage), so both are covered.
+                        '[class*="DivFooterContainer"], [class*="SubMainNavFooterContainer"], [class*="FooterRoot"], [class*="FooterContainer"], [class*="StyledFooterItemLink"] { display: none !important; }',
+                        // Best-effort: let the main content column reclaim the width freed by
+                        // hiding the right panel above. This one is the least certain of the
+                        // batch - flag it if the layout looks unchanged or looks broken either way.
+                        '[class*="DivContentContainer"], [class*="DivMainContainer"] { max-width: 100% !important; }',
+                        // The floating "Open App" nag button confirmed on the homepage
+                        // (DivOpenTikTokButtonWrapper / ButtonCTAOpenApp) - this is almost
+                        // certainly the animated tap-prompt button. We ARE the app already, so
+                        // this has zero function for us; hiding it outright, not just muting
+                        // the animation. Also hides the small "open app" icon badge next to the
+                        // Discover nav link (data-e2e is TikTok's own stable QA hook, safer than
+                        // any class name for this one).
+                        '[class*="DivOpenTikTokButtonWrapper"], [class*="ButtonCTAOpenApp"], [data-e2e="open-titok-icon"] { display: none !important; }'
+                    ].join('\\n');
+                    document.documentElement.appendChild(style);
                 })();
                 """.trimIndent(),
                 setOf("https://*.tiktok.com", "https://*.tiktokcdn.com", "https://*.tiktokv.com")
