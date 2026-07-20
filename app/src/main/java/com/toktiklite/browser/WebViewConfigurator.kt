@@ -115,9 +115,12 @@ object WebViewConfigurator {
                     var style = document.createElement('style');
                     style.setAttribute('data-toktiklite', 'baseline');
                     style.textContent = [
-                        // Prevent the desktop-width layout from creating a horizontal gutter/
-                        // scrollbar on a narrow screen; content should clip, not shift the page.
-                        'html, body { overflow-x: hidden !important; max-width: 100vw; }',
+                        // (Previously forced overflow-x: hidden here to avoid a horizontal
+                        // scroll gutter. Removed: it was clipping legitimate wider content
+                        // - the side icons, comments, repost button - instead of leaving it
+                        // reachable via scroll/pinch-zoom, which is what real "Request Desktop
+                        // Site" mode does in an actual browser. Zoom controls are already
+                        // enabled below in WebSettings for exactly this reason.
                         // Desktop hover-only affordances (tooltips, hover-reveal menus) are dead
                         // weight on a touchscreen; this is a tag/attribute-level, not class-level,
                         // best-effort softening and safe to leave in even where it does nothing.
