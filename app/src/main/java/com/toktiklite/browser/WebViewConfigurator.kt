@@ -173,6 +173,25 @@ object WebViewConfigurator {
                     var MIN_SCALE = 0.3, MAX_SCALE = 1.0;
                     var fitPending = false, fitDebounce = null;
 
+                    function measureRequiredWidth() {
+                        // document.documentElement.scrollWidth only accounts for normal-flow
+                        // content. Elements positioned `fixed` (a common pattern for modals,
+                        // lightboxes, floating action bars - exactly what a profile's video
+                        // overlay or a profile page's side action buttons are likely to use)
+                        // are taken out of flow and don't contribute to an ancestor's
+                        // scrollWidth at all. Checking each direct child of <body> by its own
+                        // actual rendered bounding box catches those regardless of position
+                        // style, since getBoundingClientRect reports real screen position/size
+                        // for fixed elements too - only the scrollWidth aggregation misses them.
+                        var maxRight = document.documentElement.scrollWidth;
+                        var children = document.body ? document.body.children : [];
+                        for (var i = 0; i < children.length; i++) {
+                            var rect = children[i].getBoundingClientRect();
+                            if (rect.right > maxRight) maxRight = rect.right;
+                        }
+                        return maxRight;
+                    }
+
                     function fitContentToScreen() {
                         if (fitPending) return;
                         fitPending = true;
@@ -182,7 +201,7 @@ object WebViewConfigurator {
                             // Reset before measuring - scrollWidth would otherwise reflect our
                             // own previous zoom instead of the page's true, unscaled width.
                             root.style.zoom = '1';
-                            var naturalWidth = root.scrollWidth;
+                            var naturalWidth = measureRequiredWidth();
                             var viewportWidth = window.innerWidth;
                             if (!naturalWidth || naturalWidth <= viewportWidth) {
                                 root.style.zoom = '1';
