@@ -82,29 +82,35 @@ object WebViewConfigurator {
                 webView,
                 """
                 (function() {
-                    if (!('userAgentData' in navigator)) return;
-                    try {
-                        Object.defineProperty(navigator, 'userAgentData', {
-                            get: function() {
-                                return {
-                                    mobile: false,
-                                    platform: 'Linux',
-                                    brands: [
-                                        { brand: 'Not?A_Brand', version: '8' },
-                                        { brand: 'Chromium', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' },
-                                        { brand: 'Google Chrome', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' }
-                                    ],
-                                    getHighEntropyValues: function(hints) {
-                                        return Promise.resolve({
-                                            mobile: false,
-                                            platform: 'Linux',
-                                            platformVersion: '6.5.0'
-                                        });
-                                    }
-                                };
-                            }
-                        });
-                    } catch (e) { /* best-effort only; never break page load over this */ }
+                    // NOTE: this used to be `if (!('userAgentData' in navigator)) return;` at
+                    // the top, which would bail out of the ENTIRE script - including the CSS
+                    // rules below - on any WebView build that doesn't expose Client Hints. Each
+                    // piece is now independently guarded so one missing API can't silently
+                    // disable everything else.
+                    if ('userAgentData' in navigator) {
+                        try {
+                            Object.defineProperty(navigator, 'userAgentData', {
+                                get: function() {
+                                    return {
+                                        mobile: false,
+                                        platform: 'Linux',
+                                        brands: [
+                                            { brand: 'Not?A_Brand', version: '8' },
+                                            { brand: 'Chromium', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' },
+                                            { brand: 'Google Chrome', version: '${Constants.CHROME_MAJOR_VERSION.substringBefore('.')}' }
+                                        ],
+                                        getHighEntropyValues: function(hints) {
+                                            return Promise.resolve({
+                                                mobile: false,
+                                                platform: 'Linux',
+                                                platformVersion: '6.5.0'
+                                            });
+                                        }
+                                    };
+                                }
+                            });
+                        } catch (e) { /* best-effort only; never break page load over this */ }
+                    }
 
                     // --- Selector-independent readability baseline ---
                     // Deliberately does NOT target any TikTok class name: their CSS classes are
@@ -154,6 +160,67 @@ object WebViewConfigurator {
                         '[class*="DivOpenTikTokButtonWrapper"], [class*="ButtonCTAOpenApp"], [data-e2e="open-titok-icon"] { display: none !important; }'
                     ].join('\\n');
                     document.documentElement.appendChild(style);
+
+                    // --- Auto-fit content width to the actual device screen ---
+                    // TikTok's desktop layout doesn't shrink itself for a phone-width screen
+                    // (that's the whole reason we removed overflow-x:hidden - the extra width
+                    // is real content, not a bug). Rather than requiring a manual pinch-zoom on
+                    // every single page, measure how much wider the real content is than the
+                    // visible screen and shrink it by exactly that ratio automatically. Chromium's
+                    // (non-standard, but fully supported in WebView) `zoom` CSS property is used
+                    // instead of `transform: scale()` because it recalculates layout/scroll size
+                    // at the new scale, rather than just visually stretching a fixed-size box.
+                    var MIN_SCALE = 0.3, MAX_SCALE = 1.0;
+                    var fitPending = false, fitDebounce = null;
+
+                    function fitContentToScreen() {
+                        if (fitPending) return;
+                        fitPending = true;
+                        requestAnimationFrame(function() {
+                            fitPending = false;
+                            var root = document.documentElement;
+                            // Reset before measuring - scrollWidth would otherwise reflect our
+                            // own previous zoom instead of the page's true, unscaled width.
+                            root.style.zoom = '1';
+                            var naturalWidth = root.scrollWidth;
+                            var viewportWidth = window.innerWidth;
+                            if (!naturalWidth || naturalWidth <= viewportWidth) {
+                                root.style.zoom = '1';
+                                return;
+                            }
+                            var scale = viewportWidth / naturalWidth;
+                            scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
+                            root.style.zoom = String(scale);
+                        });
+                    }
+
+                    function scheduleFit() {
+                        clearTimeout(fitDebounce);
+                        // TikTok's SPA mutates the DOM constantly (view counters, timers,
+                        // animations); debouncing avoids re-measuring on every single one of
+                        // those and only reacts once things settle after a real change (route
+                        // navigation, content swap).
+                        fitDebounce = setTimeout(fitContentToScreen, 400);
+                    }
+
+                    window.addEventListener('load', scheduleFit);
+                    window.addEventListener('resize', scheduleFit);
+                    if ('ResizeObserver' in window) {
+                        new ResizeObserver(scheduleFit).observe(document.documentElement);
+                    }
+                    var mutationObserver = new MutationObserver(scheduleFit);
+                    function startObserving() {
+                        mutationObserver.observe(document.body || document.documentElement, {
+                            childList: true,
+                            subtree: false // shallow: route-level swaps only, not every leaf update
+                        });
+                    }
+                    if (document.body) {
+                        startObserving();
+                    } else {
+                        document.addEventListener('DOMContentLoaded', startObserving);
+                    }
+                    scheduleFit();
                 })();
                 """.trimIndent(),
                 setOf("https://*.tiktok.com", "https://*.tiktokcdn.com", "https://*.tiktokv.com")
