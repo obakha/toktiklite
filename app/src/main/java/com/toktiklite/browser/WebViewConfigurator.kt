@@ -157,7 +157,15 @@ object WebViewConfigurator {
                         // the animation. Also hides the small "open app" icon badge next to the
                         // Discover nav link (data-e2e is TikTok's own stable QA hook, safer than
                         // any class name for this one).
-                        '[class*="DivOpenTikTokButtonWrapper"], [class*="ButtonCTAOpenApp"], [data-e2e="open-titok-icon"] { display: none !important; }'
+                        '[class*="DivOpenTikTokButtonWrapper"], [class*="ButtonCTAOpenApp"], [data-e2e="open-titok-icon"] { display: none !important; }',
+                        // Floating "Log in" button that overlaps other UI. Confirmed via
+                        // data-e2e="top-login-button" (present under both bundle hash schemes
+                        // seen so far) plus its class-name variants as backup coverage. Trade-off
+                        // worth knowing: this is very likely the primary way to trigger login
+                        // from these pages, so logging in may need a different entry point (e.g.
+                        // tapping like/follow/comment, which usually prompts login on its own)
+                        // once this is hidden.
+                        '[data-e2e="top-login-button"], [class*="LoginButtonContainer"], [class*="StyledPrimaryLoginButton"], [class*="StyledLoginButton"] { display: none !important; }'
                     ].join('\\n');
                     document.documentElement.appendChild(style);
 
