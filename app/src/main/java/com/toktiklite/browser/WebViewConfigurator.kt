@@ -165,7 +165,13 @@ object WebViewConfigurator {
                         // from these pages, so logging in may need a different entry point (e.g.
                         // tapping like/follow/comment, which usually prompts login on its own)
                         // once this is hidden.
-                        '[data-e2e="top-login-button"], [class*="LoginButtonContainer"], [class*="StyledPrimaryLoginButton"], [class*="StyledLoginButton"] { display: none !important; }'
+                        '[data-e2e="top-login-button"], [class*="LoginButtonContainer"], [class*="StyledPrimaryLoginButton"], [class*="StyledLoginButton"] { display: none !important; }',
+                        // Profile page's top-right action bar: a "Get coins" purchase button
+                        // (data-e2e="top-right-action-bar-get-coin") and a "Get the app" button
+                        // right next to it, confirmed via a direct element capture (#top-right-
+                        // action-bar contains only these two plus a login button already covered
+                        // above). Both are pure monetization/app-install prompts, no function lost.
+                        '#top-right-action-bar { display: none !important; }'
                     ].join('\\n');
                     document.documentElement.appendChild(style);
 
